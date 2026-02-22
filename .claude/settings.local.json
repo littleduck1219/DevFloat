@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npm install --save-dev @types/chrome)",
+      "Bash(npm run build)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

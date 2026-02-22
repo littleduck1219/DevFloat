@@ -1,0 +1,189 @@
+---
+description: DevFloat 프로젝트 폴더 구조 및 아키텍처 가이드라인
+alwaysApply: true
+---
+
+# DevFloat 프로젝트 구조 가이드라인
+
+## 📁 프로젝트 폴더 구조
+
+```
+src/
+├── features/                    # 기능별 모듈 (Feature-Driven Architecture)
+│   ├── api-tester/             # API 테스터 기능
+│   │   ├── components/         # 기능 전용 컴포넌트들
+│   │   │   ├── BodyEditor.tsx
+│   │   │   ├── HeaderEditor.tsx
+│   │   │   ├── MethodSelector.tsx
+│   │   │   ├── ResponseViewer.tsx
+│   │   │   └── UrlInput.tsx
+│   │   ├── ApiTester.tsx       # 메인 기능 컴포넌트
+│   │   ├── store.ts            # 기능 전용 상태 관리
+│   │   ├── api-tester.scss     # 기능 전용 스타일
+│   │   └── index.tsx           # Public API (export)
+│   │
+│   └── source-trace/           # 소스 추적 기능
+│       ├── components/         # (필요시 컴포넌트 폴더)
+│       ├── SourceTracePanel.tsx
+│       ├── store.ts            # 기능 전용 상태 관리
+│       ├── source-trace.scss
+│       ├── types.ts            # 기능 전용 타입
+│       ├── injected.ts         # 웹페이지에 주입될 스크립트
+│       ├── injectSourceTrace.ts
+│       └── index.tsx           # Public API
+│
+├── components/                  # 전역 공통 컴포넌트
+│   ├── FloatingHeader.tsx      # 플로팅 윈도우 헤더
+│   └── ThemeToggle.tsx         # 테마 토글 버튼
+│
+├── store/                       # 전역 상태 관리
+│   ├── floatingStore.ts        # 플로팅 윈도우 상태
+│   ├── themeStore.ts           # 테마 상태
+│   └── index.ts                # 스토어 통합 export
+│
+├── hooks/                       # 전역 커스텀 훅
+│   └── useTheme.ts             # 테마 관련 훅
+│
+├── App.tsx                      # 메인 애플리케이션 컴포넌트
+├── App.scss                     # 앱 전역 스타일
+├── content.tsx                  # Chrome Extension Content Script
+├── background.ts                # Chrome Extension Background Script
+├── main.tsx                     # React 엔트리 포인트
+└── index.scss                   # 전역 스타일 (CSS 변수 등)
+
+```
+
+## 🎯 아키텍처 원칙
+
+### 1. Feature-Driven Architecture
+
+- **각 기능은 독립적인 모듈**: `features/` 폴더 내에 완전한 기능 단위로 구성
+- **자급자족**: 각 feature는 자신의 컴포넌트, 스토어, 스타일, 타입을 포함
+- **명확한 Public API**: `index.tsx`를 통해 외부에 노출할 API 정의
+
+### 2. Feature 내부 구조
+
+```
+feature-name/
+├── components/         # 기능 전용 UI 컴포넌트들
+├── Feature.tsx         # 메인 기능 컴포넌트
+├── store.ts           # Zustand 스토어 (필요시)
+├── types.ts           # TypeScript 타입 정의 (필요시)
+├── feature.scss       # 스타일 파일
+├── utils.ts           # 유틸리티 함수 (필요시)
+└── index.tsx          # Public API export
+```
+
+### 3. 전역 vs 지역 구분 기준
+
+**전역 (`src/` 루트)**
+- 여러 기능에서 공유하는 컴포넌트 (`FloatingHeader`, `ThemeToggle`)
+- 앱 전체 상태 (`floatingStore`, `themeStore`)
+- 공통 훅 (`useTheme`)
+
+**지역 (Feature 내부)**
+- 특정 기능에만 사용되는 컴포넌트
+- 특정 기능의 상태 관리
+- 특정 기능의 타입 정의
+
+## 📝 코드 작성 규칙
+
+### 1. Import 경로
+
+```typescript
+// ❌ 피해야 할 방식
+import { ApiTester } from '../../api-tester'  // 상대 경로로 멀리 참조
+import { useApiStore } from '../../store/apiStore'  // store가 다른 feature에 있음
+
+// ✅ 올바른 방식
+import { ApiTester } from './features/api-tester'  // Feature는 명확한 경로로
+import { useApiStore } from './store'  // Feature 내부 store는 상대 경로
+```
+
+### 2. Feature Export
+
+```typescript
+// features/api-tester/index.tsx
+export { ApiTester } from './ApiTester'
+export { useApiStore } from './store'  // 필요시 store도 export
+export type { ApiResponse, ApiError } from './store'  // 타입도 export
+```
+
+### 3. 새로운 Feature 추가 시
+
+1. `src/features/[feature-name]/` 폴더 생성
+2. 기본 파일들 생성 (`Feature.tsx`, `index.tsx`, `feature.scss`)
+3. 필요에 따라 `components/`, `store.ts`, `types.ts` 추가
+4. `src/features/index.ts`에 export 추가 (선택사항)
+
+### 4. 스토어 배치 기준
+
+```typescript
+// ✅ Feature 전용 스토어 - features 내부
+src/features/api-tester/store.ts          // API 테스터 상태
+src/features/source-trace/store.ts        // 소스 추적 상태
+
+// ✅ 전역 스토어 - store 폴더
+src/store/floatingStore.ts                // 플로팅 윈도우 상태 (여러 기능에서 사용)
+src/store/themeStore.ts                   // 테마 상태 (전역)
+```
+
+## 🎨 스타일 관리
+
+- **Feature 스타일**: 각 feature 폴더 내부에 `[feature-name].scss`로 관리
+- **전역 스타일**: `src/index.scss`에 CSS 변수 및 전역 스타일 정의
+- **컴포넌트 스타일**: 필요시 `App.scss` 또는 feature 스타일 파일에 추가
+
+## 🔄 기능 추가/제거 시
+
+### 기능 추가
+1. `src/features/[new-feature]/` 폴더 생성
+2. 필요한 파일들 생성 (컴포넌트, 스토어, 스타일 등)
+3. `App.tsx`에서 import 및 라우팅 추가
+
+### 기능 제거
+1. 해당 feature 폴더 삭제
+2. `App.tsx`에서 관련 코드 제거
+3. 다른 파일의 import 제거
+
+## 💡 개발 시 유의사항
+
+- **단일 책임 원칙**: 각 feature는 하나의 명확한 기능 담당
+- **의존성 최소화**: feature 간 직접 참조 지양 (공통 store 활용)
+- **명명 규칙**: 
+  - 컴포넌트: PascalCase (`ApiTester.tsx`)
+  - 스토어: camelCase (`apiStore.ts` → feature 내부에서는 `store.ts`)
+  - 스타일: kebab-case (`api-tester.scss`)
+
+## 📚 참고 예시
+
+### API 테스터 기능 (완전한 예시)
+```
+features/api-tester/
+├── components/
+│   ├── BodyEditor.tsx         # 요청 본문 편집기
+│   ├── HeaderEditor.tsx       # 헤더 편집기
+│   ├── MethodSelector.tsx     # HTTP 메서드 선택기
+│   ├── ResponseViewer.tsx     # 응답 뷰어
+│   └── UrlInput.tsx           # URL 입력 필드
+├── ApiTester.tsx              # 메인 컴포넌트
+├── store.ts                   # API 요청/응답 상태
+├── api-tester.scss           # 스타일
+└── index.tsx                  # Public API
+```
+
+### 소스 추적 기능 (간단한 예시)
+```
+features/source-trace/
+├── SourceTracePanel.tsx       # 메인 UI
+├── store.ts                   # 소스 경로 상태
+├── types.ts                   # SourceLocation 타입
+├── injectSourceTrace.ts       # 스크립트 주입 로직
+├── injected.ts                # 웹페이지에서 실행될 스크립트
+├── source-trace.scss          # 스타일
+└── index.tsx                  # Public API
+```
+
+---
+
+**이 구조는 확장 가능하고 유지보수가 쉬운 프로젝트를 위해 설계되었습니다. 새로운 기능을 추가할 때는 이 가이드라인을 따라주세요.**

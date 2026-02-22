@@ -1,0 +1,53 @@
+---
+description: devfloat 프로젝트 개발 목표 및 방향
+alwaysApply: true
+---
+
+# DevFloat 프로젝트 개발 목표
+
+## 프로젝트 개요
+
+- **이름**: devfloat
+- **스택**: React 19, TypeScript, Vite, Zustand, Chrome Extension
+- **역할**: 개발을 하면서 띄워 놓고 개발에 도움을 줄 수 있는 앱.
+
+## 개발 목표
+
+1. (목표 1) 개발 하면서 화면에 띄워 놓고 쓸 수 있는 툴을 목표로 함
+ <!-- 2. (목표 2)
+2. (목표 3) -->
+
+## 기능
+
+### 앱기능
+
+- 단축키 window: ctrl + shift + h, mac: command + shift + h 로 끄고 켠다
+
+### API 테스터
+
+-
+
+### 소스추적
+
+- 소스 추적 활성 비활성 가능 하도록 한다
+- 개발 모드가 아닐때 활성이 안되도록 한다
+- 브라우저 왼쪽 상단에 소스 경로가 표시된다.
+- 소스 경로는 파일이름만 표시된다(예: App.tsx > ApiTester.tsx > BodyEditor.tsx)
+
+## 기술적 방향
+
+- React + TypeScript 기반
+- Zustand로 전역 상태 관리 (persist 미들웨어 사용)
+- 테마: light / dark / system 지원 (`themeStore`)
+- Chrome Extension 타겟
+
+## 우선순위
+
+- **현재**: (지금 집중할 작업)
+- **다음**: (그 다음 계획)
+- **보류**: (나중에 검토할 사항)
+
+## 개발 시 유의사항
+
+- 기존 코드 유지, 최소 변경 원칙
+- 수정된 코드를 원본으로 되돌리지 않음
