@@ -1,41 +1,35 @@
 {
-  "manifest_version": 3,
-  "name": "DevFloat API Tester",
-  "version": "1.0.0",
-  "description": "개발자용 API 테스터 - 어떤 웹페이지에서든 플로팅 창으로 API 테스트",
-  "permissions": [
-    "activeTab",
-    "scripting"
-  ],
-  "host_permissions": [
-    "http://*/*",
-    "https://*/*"
-  ],
-  "action": {
-    "default_title": "DevFloat API Tester 토글"
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["assets/content.js"],
-      "run_at": "document_idle"
+    "manifest_version": 3,
+    "name": "DevFloat",
+    "version": "1.0.0",
+    "description": "dev tool",
+    "permissions": ["activeTab", "scripting"],
+    "host_permissions": ["http://*/*", "https://*/*"],
+    "action": {
+        "default_title": "DevFloat API Tester 토글"
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["assets/content.js"],
+            "run_at": "document_idle"
+        }
+    ],
+    "background": {
+        "service_worker": "assets/background.js"
+    },
+    "web_accessible_resources": [
+        {
+            "resources": ["assets/injected-source-trace.js", "assets/content.css"],
+            "matches": ["<all_urls>"]
+        }
+    ],
+    "icons": {
+        "16": "icons/pabi.svg",
+        "48": "icons/pabi.svg",
+        "128": "icons/pabi.svg"
+    },
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self';"
     }
-  ],
-  "background": {
-    "service_worker": "assets/background.js"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["assets/injected-source-trace.js", "assets/content.css"],
-      "matches": ["<all_urls>"]
-    }
-  ],
-  "icons": {
-    "16": "icons/icon.svg",
-    "48": "icons/icon.svg", 
-    "128": "icons/icon.svg"
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self';"
-  }
 }

@@ -1,59 +1,60 @@
-import { useCallback } from 'react'
-import { useFloatingStore } from '../store/floatingStore'
-import { useDraggable } from '../hooks/useDraggable'
+import { useCallback } from "react";
+import { useFloatingStore } from "../store/floatingStore";
+import { useDraggable } from "../hooks/useDraggable";
+import { useResizable } from "../hooks/useResizable";
 
 interface FloatingHeaderProps {
-  onMinimize: () => void
-  onClose: () => void
+  onClose: () => void;
 }
 
-const APP_ROOT_ID = 'devfloat-app-root'
+const APP_ROOT_ID = "devfloat-app-root";
 
-export function FloatingHeader({ onMinimize, onClose }: FloatingHeaderProps) {
-  const { isMinimized, toggleMinimized, setPosition } = useFloatingStore()
+export function FloatingHeader({ onClose }: FloatingHeaderProps) {
+  const { setPosition } = useFloatingStore();
 
   const handleDragEnd = useCallback(
     (position: { top: number; left: number }) => {
-      setPosition(position)
+      setPosition(position);
     },
-    [setPosition]
-  )
+    [setPosition],
+  );
 
   const { isDragging, handleMouseDown } = useDraggable({
     targetId: APP_ROOT_ID,
-    onDragEnd: handleDragEnd
-  })
+    onDragEnd: handleDragEnd,
+  });
 
-  const handleMinimizeClick = useCallback(() => {
-    toggleMinimized()
-    if (!isMinimized) {
-      onMinimize()
-    }
-  }, [isMinimized, onMinimize, toggleMinimized])
+  const { isResizing, handleMouseDown: handleResizeMouseDown } = useResizable({
+    targetId: APP_ROOT_ID,
+  });
 
   return (
-    <div
-      className="floating-header"
-      onMouseDown={handleMouseDown}
-      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
-      <div className="floating-header__title">🔧 DevFloat</div>
+    <>
+      <div
+        className="floating-header"
+        onMouseDown={handleMouseDown}
+        style={{ cursor: isDragging ? "grabbing" : "grab" }}
+      >
+        <div className="floating-header__title">🔧 DevFloat</div>
 
-      <div className="floating-header__controls">
-        <button
-          className="floating-header__btn floating-header__btn--minimize"
-          onClick={handleMinimizeClick}
-          title={isMinimized ? '최대화' : '최소화'}
-          aria-label={isMinimized ? '최대화' : '최소화'}>
-          {isMinimized ? '□' : '—'}
-        </button>
-        <button
-          className="floating-header__btn floating-header__btn--close"
-          onClick={onClose}
-          title="닫기"
-          aria-label="닫기">
-          ✕
-        </button>
+        <div className="floating-header__controls">
+          <button
+            className="floating-header__btn floating-header__btn--close"
+            onClick={onClose}
+            title="닫기"
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+        </div>
       </div>
-    </div>
-  )
+      <div
+        className="resize-handle"
+        onMouseDown={handleResizeMouseDown}
+        style={{ cursor: isResizing ? "nwse-resize" : "nwse-resize" }}
+        title="크기 조절"
+        aria-label="크기 조절"
+      />
+    </>
+  );
 }
