@@ -1,86 +1,158 @@
 /**
- * 페이지 컨텍스트에서 실행되는 스크립트 (React Fiber 접근용)
- * content script가 script 태그로 주입
+ * 페이지 컨텍스트에서 실행되는 스크립트
  */
 import { getElementSourceLocation } from 'dom-element-to-component-source'
 
 const MESSAGE_TYPE = 'DEVFLOAT_SOURCE_TRACE'
 
+interface SourceLocation {
+  file: string
+  line: number
+  column: number
+  parent?: SourceLocation
+}
+
 function postToExtension(payload: unknown) {
   window.postMessage({ type: MESSAGE_TYPE, payload }, '*')
 }
 
-function isInsideDevFloat(element: Element): boolean {
+function isInsideDevFloat(el: Element): boolean {
   return (
-    element.closest('#devfloat-extension-root') !== null ||
-    element.closest('#devfloat-app-root') !== null ||
-    element.closest('#devfloat-source-trace-overlay') !== null
+    el.closest('#devfloat-extension-root') !== null ||
+    el.closest('#devfloat-app-root') !== null ||
+    el.closest('#devfloat-source-trace-overlay') !== null
   )
 }
 
-let mouseoverHandler: ((e: MouseEvent) => void) | null = null
-let hoverTimeout: ReturnType<typeof setTimeout> | null = null
-const HOVER_DELAY_MS = 300
-const BACKOFF_THRESHOLD = 5
-const BACKOFF_MS = 3000
-let consecutiveErrors = 0
-let backoffUntil = 0
+interface FiberNode {
+  return: FiberNode | null
+  _debugOwner?: FiberNode
+  _debugSource?: { fileName: string; lineNumber: number; columnNumber?: number }
+}
+
+function getFiber(el: Element): FiberNode | null {
+  const key = Object.keys(el).find(k => k.startsWith('__reactFiber$'))
+  if (!key) return null
+  return (el as unknown as Record<string, FiberNode>)[key] || null
+}
+
+function extractFileName(path: string): string {
+  const parts = path.replace(/\\/g, '/').split('/')
+  return parts[parts.length - 1] || path
+}
+
+function getSource(el: Element): SourceLocation | null {
+  const chain: { file: string; line: number; column: number }[] = []
+  const fiber = getFiber(el)
+  if (!fiber) return null
+
+  let current: FiberNode | null | undefined = fiber
+  let depth = 0
+
+  while (current && depth < 20) {
+    depth++
+    if (current._debugSource) {
+      const src = current._debugSource
+      const file = extractFileName(src.fileName)
+      if (!chain.some(c => c.file === file)) {
+        chain.push({ file, line: src.lineNumber, column: src.columnNumber || 0 })
+      }
+    }
+    const owner = current._debugOwner
+    const ret = current.return
+    if (owner && ret && owner !== ret) {
+      current = owner._debugSource ? owner : ret._debugSource ? ret : owner
+    } else {
+      current = owner || ret
+    }
+  }
+
+  if (chain.length === 0) return null
+
+  const deduped: typeof chain = []
+  const seen = new Set<string>()
+  for (const item of chain) {
+    if (!seen.has(item.file)) {
+      seen.add(item.file)
+      deduped.push(item)
+    }
+  }
+  deduped.reverse()
+
+  const truncated = deduped.slice(-6)
+
+  let result: SourceLocation | null = null
+  for (const item of truncated) {
+    const node: SourceLocation = { file: item.file, line: item.line, column: item.column }
+    if (result) {
+      let tail = result
+      while (tail.parent) tail = tail.parent
+      tail.parent = node
+    } else {
+      result = node
+    }
+  }
+  return result
+}
+
+let handler: ((e: MouseEvent) => void) | null = null
+let timeout: ReturnType<typeof setTimeout> | null = null
+let errors = 0
+let backoff = 0
 
 function start() {
-  if (mouseoverHandler) return
-
-  mouseoverHandler = (e: MouseEvent) => {
+  if (handler) return
+  handler = (e) => {
     const target = e.target as Element
     if (!target || isInsideDevFloat(target)) return
-    if (Date.now() < backoffUntil) return
+    if (Date.now() < backoff) return
 
     const { clientX, clientY } = e
-    if (hoverTimeout) clearTimeout(hoverTimeout)
-    hoverTimeout = setTimeout(() => {
-      hoverTimeout = null
+    if (timeout) clearTimeout(timeout)
+    timeout = setTimeout(() => {
+      timeout = null
       const el = document.elementFromPoint(clientX, clientY) as Element
       if (!el || isInsideDevFloat(el)) return
 
-      getElementSourceLocation(el, { maxDepth: 10 })
-        .then((result) => {
-          consecutiveErrors = 0
-          if (result.success) {
-            postToExtension({ type: 'source', data: result.data })
-          } else {
-            postToExtension({ type: 'error', error: result.error })
-          }
-        })
-        .catch((err) => {
-          consecutiveErrors += 1
-          if (consecutiveErrors >= BACKOFF_THRESHOLD) {
-            backoffUntil = Date.now() + BACKOFF_MS
-          }
-          postToExtension({
-            type: 'error',
-            error: err instanceof Error ? err.message : String(err)
-          })
-        })
-    }, HOVER_DELAY_MS)
+      try {
+        const result = getSource(el)
+        if (result) {
+          errors = 0
+          postToExtension({ type: 'source', data: result })
+        } else {
+          getElementSourceLocation(el, { maxDepth: 10 })
+            .then(r => {
+              errors = 0
+              if (r.success) postToExtension({ type: 'source', data: r.data })
+              else postToExtension({ type: 'error', error: r.error })
+            })
+            .catch(err => {
+              if (++errors >= 5) backoff = Date.now() + 3000
+              postToExtension({ type: 'error', error: String(err) })
+            })
+        }
+      } catch (err) {
+        if (++errors >= 5) backoff = Date.now() + 3000
+        postToExtension({ type: 'error', error: String(err) })
+      }
+    }, 300)
   }
-
-  document.addEventListener('mouseover', mouseoverHandler, true)
+  document.addEventListener('mouseover', handler, true)
 }
 
 function stop() {
-  if (mouseoverHandler) {
-    document.removeEventListener('mouseover', mouseoverHandler, true)
-    mouseoverHandler = null
+  if (handler) {
+    document.removeEventListener('mouseover', handler, true)
+    handler = null
   }
-  if (hoverTimeout) {
-    clearTimeout(hoverTimeout)
-    hoverTimeout = null
+  if (timeout) {
+    clearTimeout(timeout)
+    timeout = null
   }
-  consecutiveErrors = 0
-  backoffUntil = 0
+  errors = 0
+  backoff = 0
   postToExtension({ type: 'clear' })
 }
 
 window.addEventListener('devfloat-source-trace-stop', stop)
-
-// 스크립트 로드 시 자동 시작 (주입 시점에 이미 활성화된 상태)
 start()

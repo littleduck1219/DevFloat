@@ -33,18 +33,15 @@ export function formatSourcePathAsFileNames<T extends FileChainItem>(location: T
   let current: T | undefined = location
 
   while (current) {
-    chain.unshift(extractFileName(current.file))
+    chain.push(extractFileName(current.file))
     current = 'parent' in current ? (current.parent as T | undefined) : undefined
   }
 
-  const deduped: string[] = []
-  for (const name of chain) {
-    if (deduped[deduped.length - 1] !== name) {
-      deduped.push(name)
-    }
-  }
+  // injected.ts에서 이미 부모→자식 순서로 정렬됨
+  // 최대 6개 컴포넌트로 제한
+  const truncated = chain.slice(-6)
 
-  return deduped.join(' › ')
+  return truncated.join(' › ')
 }
 
 export const DEV_MODE_ERROR_PATTERNS = [
